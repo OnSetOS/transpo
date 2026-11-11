@@ -1,9 +1,11 @@
 <!DOCTYPE html>
+<!-- OnSet Transpo · v0.2 · 2026-11-11 · added tab bar + Setup (upload/template/add); roster load fixed via grants. Dashboard loop unchanged. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OnSet Transpo</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --accent:#c8442b;--accent-soft:#fbece7;
@@ -14,7 +16,7 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.45}
   .wrap{max-width:1000px;margin:0 auto;padding:26px 22px 90px}
-  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px}
   .brand h1{font-size:25px;font-weight:650;letter-spacing:-.02em}
   .brand h1 .os{background:linear-gradient(135deg,#D85A30,#1D9E75);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:760}
   .daypick{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 14px;box-shadow:var(--shadow)}
@@ -25,6 +27,13 @@
   .btn-primary:disabled{opacity:.5;cursor:default}
   .btn-ghost{background:#efeae2;color:var(--ink)}
   .btn-green{background:#17935a;color:#fff}
+  .btn-sm{padding:6px 11px;font-size:12.5px}
+
+  .seg{display:flex;background:#e6e0d6;border-radius:12px;padding:4px;gap:2px;margin:0 auto 22px;width:fit-content;max-width:100%;flex-wrap:wrap;justify-content:center}
+  .seg button{border:0;background:transparent;font:inherit;font-size:13.5px;font-weight:550;color:var(--muted);padding:9px 16px;border-radius:9px;cursor:pointer;transition:.18s}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .view{display:none;animation:fade .3s}.view.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
   .clabel{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:650;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin-bottom:10px}
@@ -33,20 +42,10 @@
   .crow{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:12px;border-top:1px solid var(--line);gap:10px;flex-wrap:wrap}
   .hint{color:var(--faint);font-size:12.5px}
 
-  details.setup{margin-bottom:14px}
-  details.setup summary{cursor:pointer;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px;font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:space-between}
-  details.setup summary::-webkit-details-marker{display:none}
-  .setup-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:12px}
-  .su-col h3{font-size:13px;font-weight:700;margin-bottom:8px;display:flex;gap:8px;align-items:center}
-  .su-item{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:7px 10px;background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:6px}
-  .su-item .meta{color:var(--muted);margin-left:auto}
-
   .sec-title{font-size:12px;font-weight:650;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:20px 4px 10px}
   .rows{display:flex;flex-direction:column;gap:9px}
-  .row{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:13px 16px;border-left:4px solid var(--rowc,#d9d3c8);
-    display:grid;grid-template-columns:2.3fr 2.2fr 1.3fr 2.2fr;gap:14px;align-items:center}
-  .who .nm{font-size:14.5px;font-weight:600}
-  .who .tt{font-size:12px;color:var(--muted)}
+  .row{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:13px 16px;border-left:4px solid var(--rowc,#d9d3c8);display:grid;grid-template-columns:2.3fr 2.2fr 1.3fr 2.2fr;gap:14px;align-items:center}
+  .who .nm{font-size:14.5px;font-weight:600}.who .tt{font-size:12px;color:var(--muted)}
   .shifts{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
   .sp{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
   .vgroup{display:flex;flex-direction:column;gap:5px}
@@ -54,16 +53,26 @@
   .vlabel{font-size:12.5px;width:16px;flex-shrink:0;padding-top:2px}
   .vtag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:650;padding:3px 9px;border-radius:8px;line-height:1.35}
   .vnone{color:var(--faint);font-size:12.5px}
-  .times{font-size:13px;font-weight:600}
-  .times .r{color:var(--muted);font-weight:500;font-size:12px}
-  .moves .m1{font-size:13.5px;font-weight:550}
-  .moves .m2{font-size:12px;color:var(--muted);margin-top:2px}
+  .times{font-size:13px;font-weight:600}.times .r{color:var(--muted);font-weight:500;font-size:12px}
+  .moves .m1{font-size:13.5px;font-weight:550}.moves .m2{font-size:12px;color:var(--muted);margin-top:2px}
   .flags{grid-column:1/-1;margin-top:6px;display:flex;flex-wrap:wrap;gap:6px}
   .flag{font-size:11.5px;font-weight:600;color:#9c4a10;background:#fdf0d8;border:1px solid #f0d9b0;border-radius:7px;padding:3px 9px}
   .empty{text-align:center;color:var(--faint);font-size:13.5px;padding:26px;border:1.5px dashed var(--line-strong);border-radius:14px}
   .banner{background:var(--accent-soft);border:1px solid #f4d7cf;border-radius:12px;padding:11px 15px;font-size:13px;color:#a6472f;margin-bottom:14px;display:flex;gap:8px}
   .spin{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:s .7s linear infinite}
   @keyframes s{to{transform:rotate(360deg)}}
+
+  /* setup */
+  .setup-top{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  .setup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+  .su-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+  .su-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+  .su-title{font-size:15px;font-weight:650}
+  .su-count{font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:3px 10px;border-radius:999px}
+  .su-item{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:7px 10px;background:#faf8f4;border:1px solid var(--line);border-radius:9px;margin-bottom:6px}
+  .su-item .meta{color:var(--muted);margin-left:auto}
+  .su-empty{color:var(--faint);font-size:12.5px;padding:8px 2px}
+  .placeholder{text-align:center;color:var(--faint);font-size:14px;padding:50px 20px;border:1.5px dashed var(--line-strong);border-radius:var(--radius)}
   .note{text-align:center;color:var(--faint);font-size:11.5px;margin-top:20px}
 </style>
 </head>
@@ -76,26 +85,47 @@
 
   <div class="banner">🧪 <span>Test build — no login yet. Keep real phone numbers &amp; home addresses out until login is added.</span></div>
 
-  <details class="setup">
-    <summary><span>⚙️ Setup — roster</span><span style="color:var(--faint);font-weight:500" id="setupCount"></span></summary>
-    <div class="setup-body" id="setupBody"></div>
-  </details>
-
-  <div class="card">
-    <div class="clabel">✍️ Build the day</div>
-    <textarea id="nl" placeholder="e.g. Coleman takes the Prop Truck, Basecamp to Set, arrive 6a. Robbie on the 15-pass van, main unit + nights…"></textarea>
-    <div class="crow">
-      <span class="hint">Names, trucks &amp; locations match your roster automatically</span>
-      <button class="btn btn-primary" id="buildBtn">Build day →</button>
-    </div>
+  <div class="seg">
+    <button class="on" data-v="dash">Dashboard</button>
+    <button data-v="driver">Driver</button>
+    <button data-v="gantt">Gantt</button>
+    <button data-v="week">Week Ahead</button>
+    <button data-v="setup">Setup</button>
   </div>
 
-  <div id="review"></div>
+  <!-- DASHBOARD -->
+  <section class="view on" id="dash">
+    <div class="card">
+      <div class="clabel">✍️ Build the day</div>
+      <textarea id="nl" placeholder="e.g. Coleman takes the Prop Truck, Basecamp to Set, arrive 6a. Robbie on the 15-pass van, main unit + nights…"></textarea>
+      <div class="crow"><span class="hint">Names, trucks &amp; locations match your roster automatically</span>
+        <button class="btn btn-primary" id="buildBtn">Build day →</button></div>
+    </div>
+    <div id="review"></div>
+    <div class="sec-title">Board — <span id="boardDay"></span></div>
+    <div class="rows" id="board"><div class="empty">Nothing saved for this day yet.</div></div>
+  </section>
 
-  <div class="sec-title">Board — <span id="boardDay"></span></div>
-  <div class="rows" id="board"><div class="empty">Nothing saved for this day yet.</div></div>
+  <!-- SETUP -->
+  <section class="view" id="setup">
+    <div class="banner" style="background:#f2f6ff;border-color:#d4e2fb;color:#2f5aa6">ℹ️ <span>Upload the template to load your roster, or add people one at a time. The board matches everything you type against these lists.</span></div>
+    <div class="setup-top">
+      <label class="btn btn-primary">⬆ Upload roster file<input type="file" id="upl" accept=".xlsx,.xls,.csv" style="display:none"></label>
+      <button class="btn btn-ghost" onclick="downloadTemplate()">↓ Download template</button>
+      <span class="hint" id="uplMsg"></span>
+    </div>
+    <div class="setup-grid">
+      <div class="su-card"><div class="su-head"><div class="su-title">🧑 Drivers</div><span class="su-count" id="cDrivers">0</span></div><div id="listDrivers"></div><button class="btn btn-ghost btn-sm" onclick="addDriver()">+ Add driver</button></div>
+      <div class="su-card"><div class="su-head"><div class="su-title">🚚 Vehicles</div><span class="su-count" id="cVehicles">0</span></div><div id="listVehicles"></div><button class="btn btn-ghost btn-sm" onclick="addVehicle()">+ Add vehicle</button></div>
+      <div class="su-card"><div class="su-head"><div class="su-title">📍 Locations</div><span class="su-count" id="cLocations">0</span></div><div id="listLocations"></div><button class="btn btn-ghost btn-sm" onclick="addLocation()">+ Add location</button></div>
+    </div>
+  </section>
 
-  <div class="note">OnSet Transpo · test build</div>
+  <section class="view" id="driver"><div class="placeholder">🚗 Driver view — the per-person boarding-pass card.<br>Wiring next. See the mockup for the design.</div></section>
+  <section class="view" id="gantt"><div class="placeholder">📊 Gantt — the day as one timeline.<br>Wiring next.</div></section>
+  <section class="view" id="week"><div class="placeholder">🗓️ Week Ahead — plan any day in advance.<br>Wiring next.</div></section>
+
+  <div class="note">OnSet Transpo · v0.2 · test build</div>
 </div>
 
 <script>
@@ -104,7 +134,6 @@ const SB_KEY="sb_publishable_xp1DH4Da8VntAZQbf2YL_w_W83DOPw_";
 const FN_URL=SB_URL+"/functions/v1/transpo-parse";
 const H={apikey:SB_KEY,authorization:"Bearer "+SB_KEY,"content-type":"application/json"};
 
-// vehicle color/emoji (emoji falls back to DB value)
 const VCOL={'15-Pass Van':['#10b981','#e6f6ef','#0b6b4f'],'Mini Van 1':['#14b8a6','#e2f4f2','#0d7267'],
  'Mini Van 2':['#14b8a6','#e2f4f2','#0d7267'],'Electric Truck':['#3b82f6','#e8f0fe','#1f5fc4'],
  'Camera Truck':['#f43f5e','#fde7ec','#c22243'],'Prop Truck':['#8b5cf6','#efeafe','#6b3fd1'],
@@ -113,65 +142,55 @@ const VCOL={'15-Pass Van':['#10b981','#e6f6ef','#0b6b4f'],'Mini Van 1':['#14b8a6
 const SHIFT={'Morning ☀️':['#efeafe','#6d53c7'],'Night 🌙':['#2c3e66','#fff'],'Main Unit':['#e4f3e7','#2e7d4f'],
  'Split / Part Time':['#fdf0d8','#9c6410'],'Full Day ⏰':['#e2f4f2','#0d7267']};
 
-let DRIVERS=[],VEHICLES=[],LOCATIONS=[],VEMOJI={};
-const dayEl=document.getElementById('day');
-dayEl.value=new Date().toISOString().slice(0,10);
+let DRIVERS=[],VEHICLES=[],LOCATIONS=[],VEMOJI={},PARSED=null;
+const dayEl=document.getElementById('day');dayEl.value=new Date().toISOString().slice(0,10);
 
 async function sb(path,opts={}){
   const r=await fetch(SB_URL+"/rest/v1/"+path,{...opts,headers:{...H,...(opts.headers||{})}});
   if(opts.method==="DELETE"||(opts.headers&&opts.headers.Prefer==="return=minimal"))return r.ok;
   return r.json();
 }
-function emoji(name){return VEMOJI[name]||'🚐';}
-function vtag(name){const c=VCOL[name]||['#999','#eee','#555'];return `<span class="vtag" style="background:${c[1]};color:${c[2]}">${emoji(name)} ${name}</span>`;}
-function vcol(name){return (VCOL[name]||['#9aa0a6'])[0];}
+function emoji(n){return VEMOJI[n]||'🚐';}
+function vtag(n){const c=VCOL[n]||['#999','#eee','#555'];return `<span class="vtag" style="background:${c[1]};color:${c[2]}">${emoji(n)} ${n}</span>`;}
+function vcol(n){return (VCOL[n]||['#9aa0a6'])[0];}
 function sp(l){const s=SHIFT[l]||['#eee','#555'];return `<span class="sp" style="background:${s[0]};color:${s[1]}">${l}</span>`;}
 function vehLine(lbl,list){if(!list||!list.length)return `<div class="vline"><span class="vlabel">${lbl}</span><span class="vnone">—</span></div>`;
   return `<div class="vline"><span class="vlabel">${lbl}</span><div>${list.map(vtag).join(' ')}</div></div>`;}
 
 async function loadRoster(){
   [DRIVERS,VEHICLES,LOCATIONS]=await Promise.all([
-    sb("transpo_drivers?select=*&order=name"),
-    sb("transpo_vehicles?select=*&order=name"),
-    sb("transpo_locations?select=*&order=name")]);
+    sb("transpo_drivers?select=*&order=name"),sb("transpo_vehicles?select=*&order=name"),sb("transpo_locations?select=*&order=name")]);
+  if(!Array.isArray(DRIVERS))DRIVERS=[];if(!Array.isArray(VEHICLES))VEHICLES=[];if(!Array.isArray(LOCATIONS))LOCATIONS=[];
   VEHICLES.forEach(v=>VEMOJI[v.name]=v.emoji);
-  document.getElementById('setupCount').textContent=`${DRIVERS.length} drivers · ${VEHICLES.length} vehicles · ${LOCATIONS.length} locations`;
-  document.getElementById('setupBody').innerHTML=`
-    <div class="su-col"><h3>🧑 Drivers</h3>${DRIVERS.map(d=>`<div class="su-item"><span>${d.name}</span><span class="meta">${d.title||''}</span></div>`).join('')}</div>
-    <div class="su-col"><h3>🚚 Vehicles</h3>${VEHICLES.map(v=>`<div class="su-item"><span>${v.emoji||''} ${v.name}</span><span class="meta">${v.type||''}</span></div>`).join('')}</div>
-    <div class="su-col"><h3>📍 Locations</h3>${LOCATIONS.map(l=>`<div class="su-item"><span>${l.name}</span><span class="meta">${l.address||''}</span></div>`).join('')}</div>`;
+  document.getElementById('cDrivers').textContent=DRIVERS.length;
+  document.getElementById('cVehicles').textContent=VEHICLES.length;
+  document.getElementById('cLocations').textContent=LOCATIONS.length;
+  document.getElementById('listDrivers').innerHTML=DRIVERS.length?DRIVERS.map(d=>`<div class="su-item"><span>${d.name}</span><span class="meta">${d.title||''}</span></div>`).join(''):'<div class="su-empty">None yet — upload or add.</div>';
+  document.getElementById('listVehicles').innerHTML=VEHICLES.length?VEHICLES.map(v=>`<div class="su-item"><span>${v.emoji||'🚚'} ${v.name}</span><span class="meta">${v.type||''}</span></div>`).join(''):'<div class="su-empty">None yet — upload or add.</div>';
+  document.getElementById('listLocations').innerHTML=LOCATIONS.length?LOCATIONS.map(l=>`<div class="su-item"><span>${l.name}</span><span class="meta">${l.address||''}</span></div>`).join(''):'<div class="su-empty">None yet — upload or add.</div>';
 }
 
-function rowHTML(e,driverName,driverTitle){
-  const rc=vcol((e.am_vehicles||[])[0]);
-  const m=(e.moves||[])[0];
+function rowHTML(e,nm,tt){
+  const rc=vcol((e.am_vehicles||[])[0]);const m=(e.moves||[])[0];
   const moveTxt=m?`<div class="m1">${m.from||'?'} → ${m.to||'?'}</div><div class="m2">by ${m.by||'—'}${(e.moves||[]).length>1?` · +${e.moves.length-1}`:''}</div>`:'<div class="m2" style="color:var(--faint)">—</div>';
   const flags=(e.flags&&e.flags.length)?`<div class="flags">${e.flags.map(f=>`<span class="flag">⚠️ ${f}</span>`).join('')}</div>`:'';
   return `<div class="row" style="--rowc:${rc}">
-    <div class="who"><div class="nm">${driverName||'<span style=color:#c8442b>⚠️ unmatched</span>'}</div><div class="tt">${driverTitle||''}</div>
+    <div class="who"><div class="nm">${nm||'<span style=color:#c8442b>⚠️ unmatched</span>'}</div><div class="tt">${tt||''}</div>
       <div class="shifts">${(e.shifts||[]).map(sp).join('')}</div></div>
     <div class="vgroup">${vehLine('☀️',e.am_vehicles)}${vehLine('🌙',e.pm_vehicles)}</div>
     <div class="times">${e.call||e.call_time||'—'} <span class="r">– ${e.wrap||e.wrap_time||'—'}</span></div>
     <div class="moves">${moveTxt}</div>${flags}</div>`;
 }
 
-let PARSED=null;
 async function build(){
-  const text=document.getElementById('nl').value.trim();
-  if(!text)return;
-  const btn=document.getElementById('buildBtn');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Reading…';
+  const text=document.getElementById('nl').value.trim();if(!text)return;
+  const btn=document.getElementById('buildBtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Reading…';
   try{
     const res=await fetch(FN_URL,{method:"POST",headers:H,body:JSON.stringify({day:dayEl.value,text})});
-    const data=await res.json();
-    PARSED=data.entries||[];
-    renderReview(data);
-  }catch(err){
-    document.getElementById('review').innerHTML=`<div class="banner">⚠️ <span>Couldn't reach the parser: ${err}</span></div>`;
-  }
+    const data=await res.json();PARSED=data.entries||[];renderReview(data);
+  }catch(err){document.getElementById('review').innerHTML=`<div class="banner">⚠️ <span>Couldn't reach the parser: ${err}</span></div>`;}
   btn.disabled=false;btn.textContent='Build day →';
 }
-
 function renderReview(data){
   const rv=document.getElementById('review');
   if(!PARSED.length){rv.innerHTML=`<div class="banner">⚠️ <span>Nothing parsed.${(data.flags||[]).length?' '+data.flags.join('; '):''}</span></div>`;return;}
@@ -179,32 +198,84 @@ function renderReview(data){
   rv.innerHTML=`<div class="card" style="border-color:#cfe8d6;background:#f6fbf7">
     <div class="clabel" style="color:#2e7d4f">👀 Review — ${PARSED.length} parsed. Check the ⚠️ flags, then save.</div>
     <div class="rows">${rows}</div>
-    <div class="crow" style="border-top-color:#cfe8d6">
-      <span class="hint">Saving replaces this day's board.</span>
+    <div class="crow" style="border-top-color:#cfe8d6"><span class="hint">Saving replaces this day's board.</span>
       <button class="btn btn-green" id="saveBtn">✓ Save to board</button></div></div>`;
   document.getElementById('saveBtn').onclick=saveDay;
 }
-
 async function saveDay(){
   const btn=document.getElementById('saveBtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';
   await sb("transpo_entries?day=eq."+dayEl.value,{method:"DELETE"});
   const rows=PARSED.map((e,i)=>{const d=DRIVERS.find(x=>x.name===e.driver);
-    return {day:dayEl.value,driver_id:d?d.id:null,shifts:e.shifts||[],availability:null,
-      am_vehicles:e.am_vehicles||[],pm_vehicles:e.pm_vehicles||[],call_time:e.call||null,
-      lunch_time:e.lunch||null,wrap_time:e.wrap||null,detail:e.detail||null,moves:e.moves||[],sort_order:i};});
+    return {day:dayEl.value,driver_id:d?d.id:null,shifts:e.shifts||[],availability:null,am_vehicles:e.am_vehicles||[],
+      pm_vehicles:e.pm_vehicles||[],call_time:e.call||null,lunch_time:e.lunch||null,wrap_time:e.wrap||null,detail:e.detail||null,moves:e.moves||[],sort_order:i};});
   await sb("transpo_entries",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(rows)});
-  document.getElementById('review').innerHTML='';document.getElementById('nl').value='';PARSED=null;
-  loadBoard();
+  document.getElementById('review').innerHTML='';document.getElementById('nl').value='';PARSED=null;loadBoard();
 }
-
 async function loadBoard(){
   document.getElementById('boardDay').textContent=dayEl.value;
   const entries=await sb("transpo_entries?day=eq."+dayEl.value+"&select=*&order=sort_order");
   const board=document.getElementById('board');
-  if(!entries.length){board.innerHTML='<div class="empty">Nothing saved for this day yet.</div>';return;}
+  if(!Array.isArray(entries)||!entries.length){board.innerHTML='<div class="empty">Nothing saved for this day yet.</div>';return;}
   board.innerHTML=entries.map(e=>{const d=DRIVERS.find(x=>x.id===e.driver_id);return rowHTML(e,d&&d.name,d&&d.title);}).join('');
 }
 
+// ===== setup: add / upload / template =====
+async function addDriver(){const name=prompt("Driver name?");if(!name)return;const title=prompt("Title / role?")||null;const phone=prompt("Phone? (optional)")||null;
+  await sb("transpo_drivers",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify([{name,title,phone}])});loadRoster();}
+async function addVehicle(){const name=prompt("Vehicle name?");if(!name)return;const type=prompt("Type?")||null;const emoji=prompt("Emoji? (optional)")||null;
+  await sb("transpo_vehicles",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify([{name,type,emoji}])});loadRoster();}
+async function addLocation(){const name=prompt("Location name?");if(!name)return;const address=prompt("Address?")||null;
+  await sb("transpo_locations",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify([{name,address}])});loadRoster();}
+
+function col(headers,...keys){for(let i=0;i<headers.length;i++){const h=headers[i];if(keys.some(k=>h.includes(k)))return i;}return -1;}
+function rowsFromSheet(ws){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false});
+  const hi=rows.findIndex(r=>r.some(c=>/name/i.test(String(c))));
+  if(hi<0)return{headers:[],data:[]};
+  const headers=rows[hi].map(h=>String(h||'').toLowerCase());
+  return{headers,data:rows.slice(hi+1).filter(r=>r.some(c=>String(c||'').trim()))};
+}
+document.getElementById('upl').onchange=async(ev)=>{
+  const f=ev.target.files[0];if(!f)return;
+  const msg=document.getElementById('uplMsg');msg.textContent="Reading file…";
+  try{
+    const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
+    let added={drivers:0,vehicles:0,locations:0};
+    for(const sn of wb.SheetNames){
+      const low=sn.toLowerCase();const{headers,data}=rowsFromSheet(wb.Sheets[sn]);
+      if(!data.length)continue;
+      if(low.includes('driver')||(!low.includes('vehicle')&&!low.includes('location')&&col(headers,'title')>-1)){
+        const ni=col(headers,'name'),ti=col(headers,'title'),pi=col(headers,'phone');
+        const recs=data.map(r=>({name:String(r[ni]||'').trim(),title:ti>-1?String(r[ti]||'').trim()||null:null,phone:pi>-1?String(r[pi]||'').trim()||null:null})).filter(x=>x.name);
+        if(recs.length){await sb("transpo_drivers",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(recs)});added.drivers+=recs.length;}
+      }else if(low.includes('vehicle')){
+        const ni=col(headers,'name'),ti=col(headers,'type');
+        const recs=data.map(r=>({name:String(r[ni]||'').trim(),type:ti>-1?String(r[ti]||'').trim()||null:null})).filter(x=>x.name);
+        if(recs.length){await sb("transpo_vehicles",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(recs)});added.vehicles+=recs.length;}
+      }else if(low.includes('location')){
+        const ni=col(headers,'name'),ai=col(headers,'address');
+        const recs=data.map(r=>({name:String(r[ni]||'').trim(),address:ai>-1?String(r[ai]||'').trim()||null:null})).filter(x=>x.name);
+        if(recs.length){await sb("transpo_locations",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(recs)});added.locations+=recs.length;}
+      }
+    }
+    msg.textContent=`Added ${added.drivers} drivers, ${added.vehicles} vehicles, ${added.locations} locations.`;
+    loadRoster();
+  }catch(e){msg.textContent="Couldn't read that file — "+e;}
+  ev.target.value="";
+};
+function downloadTemplate(){
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Name *","Title / Role *","Phone","Email"],["Rick Alvarez (delete example)","Unit PA","(818) 555-0142",""]]),"Drivers");
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Vehicle Name *","Type *","Notes"],["G&E Truck (delete example)","Grip / Electric",""]]),"Vehicles");
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Location Name *","Address *","Notes"],["Basecamp (delete example)","700 S Raymond Ave",""]]),"Locations");
+  XLSX.writeFile(wb,"OnSet_Transpo_Setup_Template.xlsx");
+}
+
+// nav
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.seg button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');document.getElementById(b.dataset.v).classList.add('on');});
 document.getElementById('buildBtn').onclick=build;
 dayEl.onchange=loadBoard;
 (async()=>{await loadRoster();await loadBoard();})();
